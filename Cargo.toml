@@ -1,0 +1,14 @@
+[package]
+name = "blog-back"
+version = "0.1.0"
+authors = ["howard chang <idhowardgj94@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+mysql = "*"
+actix-web = "3"
+refinery = { version = "0.5", features = ["mysql", "rusqlite"]}
+rusqlite = "*"
+assert-type-eq="*"
