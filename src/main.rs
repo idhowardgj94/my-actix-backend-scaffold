@@ -2,6 +2,11 @@ use mysql::*;
 use mysql::prelude::*;
 use actix_web::{get, web, App, HttpServer, Responder};
 use blog_back::db::migration::*;
+use blog_back::login::login_post;
+use std::sync::Arc;
+use blog_back::router::not_found;
+use actix_web::middleware::Logger;
+use log::*;
 
 #[derive(Debug, PartialEq, Eq)]
 struct Payment {
@@ -19,9 +24,12 @@ fn create(i: i32, a: i32, n: Option<String>) -> Payment {
 }
 #[actix_web::main]
 async fn main() -> Result<()> {
+    env_logger::init_from_env(env_logger::Env::new().default_filter_or("debug"));
     // db migration
     let pool = Pool::new("mysql://root:example@127.0.0.1:3306/blog")?;
     let mut conn = pool.get_conn();
+    let db_pool = web::Data::new(pool);
+
     if let Ok(mut c) = conn {
         println!("good, {:?}", c);
         let r = embed::migrations::runner().run(&mut c);
@@ -32,8 +40,13 @@ async fn main() -> Result<()> {
         panic!("{:?}", conn);
     }
 
-    HttpServer::new(|| {
-        App::new().service(web::resource("/").route(web::get().to(index)))
+    HttpServer::new(move || {
+        App::new()
+            .wrap(Logger::default())
+            .app_data(db_pool.clone())
+            .service(web::resource("/").route(web::get().to(index)))
+            .service(web::resource("/login").route(web::post().to(login_post)))
+            .default_service(web::route().to(not_found))
     })
         .bind("0.0.0.0:3000")?
         .run()
@@ -44,25 +57,6 @@ async fn main() -> Result<()> {
 async fn index() -> impl Responder {
     format!("Hello, World, Hello, Howard")
 }
-// fn main()->Result<()> {
-//     println!("Hello, world!");
-//     let pool = Pool::new("mysql://root:example@127.0.0.1:3306/blog")?;
-//     let mut conn = pool.get_conn()?;
-//
-//     let payments = vec![
-//         create(1, 2, None),
-//         create(3, 4, Some(String::from("aoo")))
-//     ];
-//     conn.exec_batch(r"INSERT INTO payment (customer_id, amount, account_name) VALUES (:customer_id, :amount, :account_name)",
-//                     payments.iter().map(|p| params! {
-//                     "customer_id" => p.customer_id,
-//                     "amount" => p.amount,
-//                     "account_name" => &p.account_name,
-//                     })
-//     )?;
-//
-//     Ok(())
-// }
 
 #[cfg(test)]
 mod test {
