@@ -7,7 +7,7 @@ use std::sync::Arc;
 use blog_back::router::not_found;
 use actix_web::middleware::Logger;
 use log::*;
-
+use serde::{Deserialize, Serialize};
 #[derive(Debug, PartialEq, Eq)]
 struct Payment {
     customer_id: i32,
