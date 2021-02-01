@@ -1,13 +1,17 @@
 use mysql::*;
 use mysql::prelude::*;
-use actix_web::{get, web, App, HttpServer, Responder};
+use actix_web::{get, web, App, HttpServer, Responder, guard, HttpResponse};
 use blog_back::db::migration::*;
-use blog_back::login::login_post;
+use blog_back::login::{login_post, fetch_user};
 use std::sync::Arc;
 use blog_back::router::not_found;
 use actix_web::middleware::Logger;
 use log::*;
 use serde::{Deserialize, Serialize};
+use blog_back::auth_middleware::validator;
+use actix_web::web::Json;
+use actix_web::dev::ServiceResponse;
+
 #[derive(Debug, PartialEq, Eq)]
 struct Payment {
     customer_id: i32,
@@ -22,6 +26,7 @@ fn create(i: i32, a: i32, n: Option<String>) -> Payment {
         account_name: n,
     }
 }
+
 #[actix_web::main]
 async fn main() -> Result<()> {
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("debug"));
@@ -31,10 +36,10 @@ async fn main() -> Result<()> {
     let db_pool = web::Data::new(pool);
 
     if let Ok(mut c) = conn {
-        println!("good, {:?}", c);
+        info!("good, {:?}", c);
         let r = embed::migrations::runner().run(&mut c);
         if let Err(e) = r {
-            println!("{:?}", e);
+            error!("{:?}", e);
         }
     } else {
         panic!("{:?}", conn);
@@ -46,6 +51,19 @@ async fn main() -> Result<()> {
             .app_data(db_pool.clone())
             .service(web::resource("/").route(web::get().to(index)))
             .service(web::resource("/login").route(web::post().to(login_post)))
+            .service(
+                web::scope("/api")
+                    .service(
+                        web::resource("/fetch")
+                            .guard(guard::fn_guard(validator))
+                            .route(web::get().to(fetch_user)))
+                    .service(
+                        web::resource("/*").to(|| HttpResponse::Ok()
+                            .content_type("application/json")
+                            .body(json::object! {"status" => "auth_fail"}.dump())
+                        )
+                    )
+            )
             .default_service(web::route().to(not_found))
     })
         .bind("0.0.0.0:3000")?

@@ -1,10 +1,12 @@
 use mysql::prelude::*;
 use mysql::*;
 use bcrypt::{DEFAULT_COST, hash, verify};
-use actix_web::{web, HttpResponse};
+use actix_web::{web, HttpResponse, Responder};
 use actix_web::web::Json;
 use json::JsonValue;
 use serde::{Deserialize, Serialize};
+use crate::util::user_bTreeMap;
+use crate::jwt::sign_for_login;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct User {
@@ -19,7 +21,7 @@ pub enum DatabaseType {
     None
 }
 
-pub fn login(db_pool: DatabaseType, user: User) -> bool {
+pub fn login(db_pool: DatabaseType, user: &User) -> bool {
     let r = match db_pool {
         DatabaseType::None  => {
             let password = hash("idhowardgj94", DEFAULT_COST).unwrap();
@@ -37,7 +39,7 @@ pub fn login(db_pool: DatabaseType, user: User) -> bool {
     match r {
         Some(u) => {
             let password = u.password;
-            match verify(user.password, &password) {
+            match verify(&user.password, &password) {
                 Ok(bool) => bool,
                 Err(e) => {
                     false
@@ -55,10 +57,11 @@ pub fn login(db_pool: DatabaseType, user: User) -> bool {
 pub async fn login_post(db: web::Data<mysql::Pool>, body: Json<User>) -> std::io::Result<HttpResponse> {
     let u = body.into_inner();
     let conn = db.get_conn().unwrap();
-    let bool = login(DatabaseType::Mysql(conn), u);
+    let bool = login(DatabaseType::Mysql(conn), &u);
     match bool {
         true => {
             Ok(HttpResponse::Ok()
+                .set_header("Authorization",  format!("{} {}", "Bearer", sign_for_login(user_bTreeMap(&u))))
                 .content_type("application/json")
                 .body(json::object! { "status" => "success", "data" => "test" }.dump()))
         },
@@ -66,6 +69,13 @@ pub async fn login_post(db: web::Data<mysql::Pool>, body: Json<User>) -> std::io
             Ok(HttpResponse::Ok().content_type("application/json").body(json::object! {"status" => "fail"}.dump()))
         }
     }
+}
+
+// TODO 1, 取得資料 2, timeout
+pub async fn fetch_user() -> impl Responder {
+    HttpResponse::Ok().content_type("application/json").body(json::object! {
+        "status" => "login"
+    }.dump())
 }
 
 #[cfg(test)]
@@ -92,7 +102,7 @@ mod test_login {
     #[test]
     fn login_test() {
         let conn = setup();
-        assert!(login( DatabaseType::None, User {
+        assert!(login( DatabaseType::None, &User {
             name: "idhowardgj94".to_string(),
             password: "idhowardgj94".to_string()
         }));
