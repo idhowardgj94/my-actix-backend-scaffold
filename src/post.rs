@@ -1,7 +1,11 @@
 use actix_web::{HttpResponse, web};
-use actix_web::web::Json;
+use actix_web::web::{Json, Path};
 use model::PostRequest;
 use crate::commons::database_type::DatabaseType;
+use crate::post::service::select_post_list;
+use log::*;
+use crate::post::model::PostListData;
+use serde::{Deserialize, Serialize};
 mod service;
 mod model;
 
@@ -21,8 +25,38 @@ pub async fn post_insert_post(db: web::Data<mysql::Pool>, body: Json<PostRequest
                         "status" => "error"
                     }.dump()))
     }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct PostListPages {
+    pub status: String,
+    pub pages: u32,
+    pub page: u32,
+    pub data: Vec<PostListData>
+}
+
+pub async fn get_post_list(db: web::Data<mysql::Pool>, info: Path<(u32)>)
+                              -> std::io::Result<HttpResponse> {
+    let conn = db.get_conn().unwrap();
+    let result = select_post_list(DatabaseType::Mysql(conn), info.0);
+
+    match result {
+        Some((pages, data)) => Ok(
+            HttpResponse::Ok().json(PostListPages {
+                status: "success".to_string(),
+                pages,
+                page: info.0,
+                data
+            })),
+        _ => Ok(HttpResponse::Ok().content_type("application/json").body(
+            json::object! {
+                "status" => "error",
+                "msg" => "error when fetch data"
+        }.dump()))
+    }
 
 }
+
 
 #[cfg(test)]
 pub mod test_time {

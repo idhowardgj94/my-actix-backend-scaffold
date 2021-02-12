@@ -7,3 +7,14 @@ pub struct PostRequest {
     pub content: String,
     pub status: i32,
 }
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct PostListData {
+    pub id: i32,
+    pub title: String,
+    pub content: String,
+    pub tags: Vec<String>,
+    pub create_time: String,
+    pub update_time: String,
+    pub is_public: i32,
+}
