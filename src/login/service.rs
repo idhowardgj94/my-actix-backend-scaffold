@@ -1,10 +1,6 @@
 use bcrypt::{DEFAULT_COST, hash, verify};
-use json::JsonValue;
 use mysql::*;
 use mysql::prelude::*;
-use mysql::prelude::Queryable;
-use serde::{Deserialize, Serialize};
-
 use crate::commons::database_type::DatabaseType;
 use crate::login::model::User;
 
@@ -16,7 +12,7 @@ pub fn login(db_pool: DatabaseType, user: &User) -> bool {
             Some( User { name: "idhowardgj94".to_string(), password })
         },
         // for test
-        DatabaseType::Sqlite(sqlite) => Some( User { name: "idhowardgj94".to_string(), password: "idhowardgj94".to_string() }),
+        DatabaseType::Sqlite(_) => Some( User { name: "idhowardgj94".to_string(), password: "idhowardgj94".to_string() }),
         DatabaseType::Mysql(mut conn) => {
             conn.exec_first(r"SELECT name, password FROM users WHERE name=:name", params! {
                 "name" => user.name.clone()
@@ -31,7 +27,7 @@ pub fn login(db_pool: DatabaseType, user: &User) -> bool {
             let password = u.password;
             match verify(&user.password, &password) {
                 Ok(bool) => bool,
-                Err(e) => {
+                Err(_) => {
                     false
                 }
             }

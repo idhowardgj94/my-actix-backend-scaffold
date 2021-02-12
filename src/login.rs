@@ -1,11 +1,5 @@
 use actix_web::{HttpResponse, Responder, web};
 use actix_web::web::Json;
-use bcrypt::{DEFAULT_COST, hash, verify};
-use json::JsonValue;
-use mysql::*;
-use mysql::prelude::*;
-use serde::{Deserialize, Serialize};
-
 use crate::commons::database_type::DatabaseType;
 use crate::jwt::sign_for_login;
 use crate::login::model::User;

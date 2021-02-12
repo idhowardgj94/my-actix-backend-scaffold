@@ -2,7 +2,6 @@ use hmac::{Hmac, NewMac};
 use jwt::{SignWithKey, VerifyWithKey};
 use sha2::Sha256;
 use std::collections::{BTreeMap};
-use rusqlite::Map;
 
 pub fn sign_for_login(c: BTreeMap<String, String>) -> String {
     // TODO config

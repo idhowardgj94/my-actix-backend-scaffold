@@ -1,16 +1,11 @@
 use mysql::*;
-use mysql::prelude::*;
-use actix_web::{get, web, App, HttpServer, Responder, guard, HttpResponse};
+use actix_web::{web, App, HttpServer, Responder, guard};
 use blog_back::db::migration::*;
 use blog_back::login::{login_post, fetch_user};
-use std::sync::Arc;
 use blog_back::router::not_found;
 use actix_web::middleware::Logger;
 use log::*;
-use serde::{Deserialize, Serialize};
 use blog_back::auth_middleware::validator;
-use actix_web::web::{Json, scope};
-use actix_web::dev::ServiceResponse;
 use blog_back::post::post_insert_post;
 
 #[derive(Debug, PartialEq, Eq)]
@@ -25,7 +20,7 @@ async fn main() -> Result<()> {
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("debug"));
     // db migration
     let pool = Pool::new("mysql://root:example@127.0.0.1:3306/blog")?;
-    let mut conn = pool.get_conn();
+    let conn = pool.get_conn();
     let db_pool = web::Data::new(pool);
 
     if let Ok(mut c) = conn {

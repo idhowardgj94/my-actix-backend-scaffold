@@ -1,9 +1,5 @@
-use actix_web::dev::{ServiceRequest, RequestHead};
-use actix_web::Error;
-use hmac::Hmac;
-use log::*;
+use actix_web::dev::{RequestHead};
 use crate::jwt::verification;
-use futures::TryFutureExt;
 
 pub fn validator(
     req: &RequestHead
