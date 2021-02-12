@@ -9,22 +9,15 @@ use actix_web::middleware::Logger;
 use log::*;
 use serde::{Deserialize, Serialize};
 use blog_back::auth_middleware::validator;
-use actix_web::web::Json;
+use actix_web::web::{Json, scope};
 use actix_web::dev::ServiceResponse;
+use blog_back::post::post_insert_post;
 
 #[derive(Debug, PartialEq, Eq)]
 struct Payment {
     customer_id: i32,
     amount: i32,
     account_name:  Option<String>,
-}
-
-fn create(i: i32, a: i32, n: Option<String>) -> Payment {
-    Payment {
-        customer_id: i,
-        amount: a,
-        account_name: n,
-    }
 }
 
 #[actix_web::main]
@@ -58,10 +51,9 @@ async fn main() -> Result<()> {
                             .guard(guard::fn_guard(validator))
                             .route(web::get().to(fetch_user)))
                     .service(
-                        web::resource("/*").to(|| HttpResponse::Ok()
-                            .content_type("application/json")
-                            .body(json::object! {"status" => "auth_fail"}.dump())
-                        )
+                        web::resource("/post")
+                            .guard(guard::fn_guard(validator))
+                            .route(web::post().to(post_insert_post))
                     )
             )
             .default_service(web::route().to(not_found))

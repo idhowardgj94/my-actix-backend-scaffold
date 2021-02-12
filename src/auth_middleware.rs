@@ -9,11 +9,9 @@ pub fn validator(
     req: &RequestHead
 ) -> bool {
     let q = req.headers().get("Authorization");
-    println!("{:?}", q);
     match  q {
         Some(k) => {
             let k: Vec<&str> = k.to_str().unwrap().split(" ").collect();
-            println!("{:?}", q);
             match k.get(1) {
                 None => false,
                 Some(s) => {

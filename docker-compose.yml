@@ -2,15 +2,17 @@
 version: '3.1'
 
 services:
-
   db:
     image: mysql
-    network_mode: host
+    # network_mode: host
     environment:
       MYSQL_ROOT_PASSWORD: example
       MYSQL_DATABASE: blog
+    ports:
+      - 3306:3306
+      - 33060:33060
   adminer:
-    network_mode: host
+    #  network_mode: host
     image: adminer
     ports:
-      - 8080:8080
+      - "8080:8080"

@@ -465,6 +465,7 @@ dependencies = [
  "assert-type-eq",
  "base64 0.12.3",
  "bcrypt",
+ "chrono",
  "crypto-mac",
  "digest 0.9.0",
  "env_logger",
