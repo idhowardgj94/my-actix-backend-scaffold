@@ -1,11 +1,14 @@
 use actix_web::{HttpResponse, web};
 use actix_web::web::{Json, Path};
-use model::PostRequest;
-use crate::commons::database_type::DatabaseType;
-use crate::post::service::select_post_list;
 use log::*;
-use crate::post::model::PostListData;
 use serde::{Deserialize, Serialize};
+
+use model::{PostListPages, PostRequest};
+
+use crate::commons::database_type::DatabaseType;
+use crate::post::model::PostListData;
+use crate::post::service::select_post_list;
+
 mod service;
 mod model;
 
@@ -27,15 +30,7 @@ pub async fn post_insert_post(db: web::Data<mysql::Pool>, body: Json<PostRequest
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-struct PostListPages {
-    pub status: String,
-    pub pages: u32,
-    pub page: u32,
-    pub data: Vec<PostListData>
-}
-
-pub async fn get_post_list(db: web::Data<mysql::Pool>, info: Path<(u32)>)
+pub async fn get_post_list(db: web::Data<mysql::Pool>, info: Path<u32>)
                               -> std::io::Result<HttpResponse> {
     let conn = db.get_conn().unwrap();
     let result = select_post_list(DatabaseType::Mysql(conn), info.0);

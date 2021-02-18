@@ -18,3 +18,11 @@ pub struct PostListData {
     pub update_time: String,
     pub is_public: i32,
 }
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct PostListPages {
+    pub status: String,
+    pub pages: u32,
+    pub page: u32,
+    pub data: Vec<PostListData>
+}
