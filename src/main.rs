@@ -1,7 +1,7 @@
 use mysql::*;
 use actix_web::{web, App, HttpServer, Responder, guard};
 use blog_back::db::migration::*;
-use blog_back::login::{login_post, fetch_user};
+use blog_back::login::{login_post, me, logout};
 use blog_back::router::not_found;
 use actix_web::middleware::Logger;
 use log::*;
@@ -38,13 +38,14 @@ async fn main() -> Result<()> {
             .wrap(Logger::default())
             .app_data(db_pool.clone())
             .service(web::resource("/").route(web::get().to(index)))
-            .service(web::resource("/login").route(web::post().to(login_post)))
+            .service(web::resource("/api/login").route(web::post().to(login_post)))
+            .service(web::resource("/api/logout").route(web::post().to(logout)))
+            .service(
+                web::resource("/me")
+                    .route(web::post().to(me))
+            )
             .service(
                 web::scope("/api")
-                    .service(
-                        web::resource("/fetch")
-                            .guard(guard::fn_guard(validator))
-                            .route(web::get().to(fetch_user)))
                     .service(
                         web::resource("/post")
                             .guard(guard::fn_guard(validator))
@@ -52,8 +53,7 @@ async fn main() -> Result<()> {
                     .service(
                         web::resource("/posts/{page}")
                             .guard(guard::fn_guard(validator))
-                            .route(web::get().to(get_post_list))
-                    )
+                            .route(web::get().to(get_post_list)))
 
             )
             .default_service(web::route().to(not_found))
