@@ -9,7 +9,7 @@ pub struct PostRequest {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct PostListData {
+pub struct PostData {
     pub id: i32,
     pub title: String,
     pub content: String,
@@ -24,5 +24,5 @@ pub struct PostListPages {
     pub status: String,
     pub pages: u32,
     pub page: u32,
-    pub data: Vec<PostListData>
+    pub data: Vec<PostData>
 }

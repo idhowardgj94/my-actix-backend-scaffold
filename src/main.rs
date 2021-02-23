@@ -6,7 +6,7 @@ use blog_back::router::not_found;
 use actix_web::middleware::Logger;
 use log::*;
 use blog_back::auth_middleware::validator;
-use blog_back::post::{post_insert_post, get_post_list};
+use blog_back::post::{post_insert_post, get_post_list, get_blog};
 
 #[derive(Debug, PartialEq, Eq)]
 struct Payment {
@@ -52,9 +52,11 @@ async fn main() -> Result<()> {
                             .route(web::post().to(post_insert_post)))
                     .service(
                         web::resource("/posts/{page}")
-                            .guard(guard::fn_guard(validator))
                             .route(web::get().to(get_post_list)))
-
+                    .service(
+                        web::resource("/blog/{id}")
+                            .route(web::get().to(get_blog))
+                    )
             )
             .default_service(web::route().to(not_found))
     })

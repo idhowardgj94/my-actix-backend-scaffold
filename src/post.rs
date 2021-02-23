@@ -6,8 +6,9 @@ use serde::{Deserialize, Serialize};
 use model::{PostListPages, PostRequest};
 
 use crate::commons::database_type::DatabaseType;
-use crate::post::model::PostListData;
-use crate::post::service::select_post_list;
+use crate::post::model::PostData;
+use crate::post::service::{select_post_list, get_blog_by_id};
+use crate::util::DataResponse;
 
 mod service;
 mod model;
@@ -30,6 +31,24 @@ pub async fn post_insert_post(db: web::Data<mysql::Pool>, body: Json<PostRequest
     }
 }
 
+/// GET /api/blog/{id}
+pub async fn get_blog(db: web::Data<mysql::Pool>, id: Path<i32>) -> std::io::Result<HttpResponse> {
+    let conn = db.get_conn().unwrap();
+    match get_blog_by_id(DatabaseType::Mysql(conn), id.0) {
+        Some(d) => {
+            // let data = serde_json::to_string(&d).unwrap();
+            Ok(HttpResponse::Ok().content_type("application/json").json(DataResponse {
+                status: "success",
+                data: d
+            }))
+        },
+        None => Ok(HttpResponse::Ok().content_type("application").body(json::object! {
+            "status" => "not_found"
+        }.dump()))
+    }
+}
+
+/// GET /api/posts/{page}
 pub async fn get_post_list(db: web::Data<mysql::Pool>, info: Path<u32>)
                               -> std::io::Result<HttpResponse> {
     let conn = db.get_conn().unwrap();

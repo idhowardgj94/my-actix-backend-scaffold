@@ -2,8 +2,9 @@ use chrono::{DateTime, Local};
 use mysql::*;
 use mysql::prelude::*;
 use crate::commons::database_type::DatabaseType;
-use crate::post::model::{PostRequest, PostListData};
+use crate::post::model::{PostRequest, PostData};
 use log::debug;
+use mysql::time::Date;
 
 #[allow(unused_must_use)]
 pub fn insert_post(db_pool: DatabaseType, p: PostRequest)-> mysql::Result<()> {
@@ -37,19 +38,46 @@ pub fn insert_post(db_pool: DatabaseType, p: PostRequest)-> mysql::Result<()> {
     }
 }
 
-pub fn select_post_list(db_pool: DatabaseType, page: u32) -> Option<(u32, Vec<PostListData>)> {
+pub fn get_blog_by_id(db_pool: DatabaseType, id: i32) -> Option<PostData> {
+    match db_pool {
+        DatabaseType::Mysql(mut conn) => {
+            // XXX exec_first 方法，在使用 get (from FromValue Trait ) 時，在create_time 解析成 String 時會有問題…
+            let res = conn.query_first::<Row, _>(format! ("SELECT id, title, content, is_public, create_time, update_time  FROM posts WHERE id = {}", (id))).unwrap();
+
+            let response = match res {
+                Some(it) => {
+                    let t_result = conn.exec_iter("SELECT t.tag_name FROM tags t JOIN post_tag p ON p.tag_id = t.id WHERE p.post_id = ?",
+                                                  (it.get::<u32, _>(0).unwrap(),)).unwrap();
+                    debug!("{:?}", it);
+                    Some(PostData {
+                        id: it.get(0).unwrap(),
+                        title: it.get(1).unwrap(),
+                        content: it.get::<String, _>(2).unwrap(),
+                        tags: t_result.into_iter().map(|it| it.unwrap().get(0).unwrap()).collect(),
+                        create_time: it.get::<String, _>(4).unwrap(),
+                        update_time: it.get::<String, _>(5).unwrap(),
+                        is_public: it.get(3).unwrap()
+                    })
+                },
+                None => None
+            };
+            response
+        },
+        _ => None
+    }
+}
+
+pub fn select_post_list(db_pool: DatabaseType, page: u32) -> Option<(u32, Vec<PostData>)> {
     match db_pool {
         DatabaseType::Mysql(mut conn) => {
             // calculate pages
             let count: u32 = conn.query_first("SELECT count(id) FROM posts").unwrap().unwrap();
-            debug!("{}", count);
             let pages = count / 10 + 1;
-            debug!("{}", pages);
             if page > pages {
                 return None;
             }
 
-            let mut response: Vec<PostListData> = Vec::new();
+            let mut response: Vec<PostData> = Vec::new();
             let mut posts_tmp: Vec<Row> = Vec::new();
             // query_iter
             // query_exec not the same
@@ -62,14 +90,19 @@ pub fn select_post_list(db_pool: DatabaseType, page: u32) -> Option<(u32, Vec<Po
             }
 
             for it in posts_tmp {
-                debug!("{:?}", it);
-                debug!("{:?}", it.get::<String, _>(1).unwrap());
                 let t_result = conn.exec_iter("SELECT t.tag_name FROM tags t JOIN post_tag p ON p.tag_id = t.id WHERE p.post_id = ?",
                                                        (it.get::<u32, _>(0).unwrap(),)).unwrap();
-                response.push( PostListData {
+
+                // setting content max size 150.
+                let mut content = it.get::<String, _>(2).unwrap();
+                if content.len() > 150 {
+                    content = content.chars().into_iter().take(150).collect();
+                }
+
+                response.push( PostData {
                     id: it.get(0).unwrap(),
                     title: it.get(1).unwrap(),
-                    content: it.get(2).unwrap(),
+                    content,
                     tags: t_result.into_iter().map(|it| it.unwrap().get(0).unwrap()).collect(),
                     create_time: it.get::<String, _>(4).unwrap(),
                     update_time: it.get::<String, _>(5).unwrap(),

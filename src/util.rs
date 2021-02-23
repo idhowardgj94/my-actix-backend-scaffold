@@ -1,6 +1,8 @@
 use std::collections::{BTreeMap};
 use crate::login::model::User;
 use log::*;
+use serde::Deserialize;
+use serde::Serialize;
 
 // a helper for covert user to map
 pub fn user_b_tree_map(u: &User) -> BTreeMap< String, String> {
@@ -9,3 +11,13 @@ pub fn user_b_tree_map(u: &User) -> BTreeMap< String, String> {
     info!("{:?}", t);
     t
 }
+
+#[derive(Serialize, Deserialize)]
+pub struct DataResponse<'a, Data> {
+    pub(crate) status: &'a str,
+    pub(crate) data: Data
+}
+
+// pub fn new_response<Data>(status: String, data: Data) {
+//
+// }
