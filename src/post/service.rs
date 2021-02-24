@@ -67,7 +67,17 @@ pub fn get_blog_by_id(db_pool: DatabaseType, id: i32) -> Option<PostData> {
     }
 }
 
-pub fn select_post_list(db_pool: DatabaseType, page: u32) -> Option<(u32, Vec<PostData>)> {
+pub fn trigger_public_by_id(db_pool: DatabaseType, n: u32)  {
+    match db_pool {
+        DatabaseType::Mysql(mut conn) => {
+            conn.exec_drop("UPDATE posts SET is_public = IF(is_public = 0, 1, 0) WHERE id=?", (n,)).unwrap();
+        }
+        _ => {}
+    }
+
+}
+
+pub fn select_post_list(db_pool: DatabaseType, page: u32, is_public: i32) -> Option<(u32, Vec<PostData>)> {
     match db_pool {
         DatabaseType::Mysql(mut conn) => {
             // calculate pages
@@ -81,9 +91,13 @@ pub fn select_post_list(db_pool: DatabaseType, page: u32) -> Option<(u32, Vec<Po
             let mut posts_tmp: Vec<Row> = Vec::new();
             // query_iter
             // query_exec not the same
-            let res= conn.query_iter(
-                format!("SELECT id, title, content, is_public, create_time, update_time FROM posts LIMIT 10 OFFSET {}",
-                                     (page - 1) * 10)).unwrap();
+            let query = match is_public {
+                -1 => format!("SELECT id, title, content, is_public, create_time, update_time FROM posts LIMIT 10 OFFSET {}",
+                              (page - 1) * 10),
+                1 | _ => format!("SELECT id, title, content, is_public, create_time, update_time FROM posts WHERE is_public = {} LIMIT 10 OFFSET {}",
+                             1, (page - 1) * 10),
+            };
+            let res= conn.query_iter(query).unwrap();
             for rit in res {
                 let it = rit.unwrap();
                 posts_tmp.push(it);

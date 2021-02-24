@@ -2,12 +2,10 @@ use actix_web::{HttpResponse, web};
 use actix_web::web::{Json, Path};
 use log::*;
 use serde::{Deserialize, Serialize};
-
 use model::{PostListPages, PostRequest};
-
 use crate::commons::database_type::DatabaseType;
 use crate::post::model::PostData;
-use crate::post::service::{select_post_list, get_blog_by_id};
+use crate::post::service::{select_post_list, get_blog_by_id, trigger_public_by_id};
 use crate::util::DataResponse;
 
 mod service;
@@ -48,11 +46,20 @@ pub async fn get_blog(db: web::Data<mysql::Pool>, id: Path<i32>) -> std::io::Res
     }
 }
 
+/// POST /api/post/public/{n}
+pub async fn trigger_public(db: web::Data<mysql::Pool>, n: Path<u32>) -> std::io::Result<HttpResponse> {
+    let conn = db.get_conn().unwrap();
+    trigger_public_by_id(DatabaseType::Mysql(conn), n.0);
+    Ok(HttpResponse::Ok().content_type("application/json").body(json::object! {
+        "status" => "success"
+    }.dump()))
+}
+
 /// GET /api/posts/{page}
 pub async fn get_post_list(db: web::Data<mysql::Pool>, info: Path<u32>)
                               -> std::io::Result<HttpResponse> {
     let conn = db.get_conn().unwrap();
-    let result = select_post_list(DatabaseType::Mysql(conn), info.0);
+    let result = select_post_list(DatabaseType::Mysql(conn), info.0, -1);
 
     match result {
         Some((pages, data)) => Ok(
@@ -68,7 +75,28 @@ pub async fn get_post_list(db: web::Data<mysql::Pool>, info: Path<u32>)
                 "msg" => "error when fetch data"
         }.dump()))
     }
+}
 
+/// GET /api/posts/public/{page}
+pub async fn get_public_post_list(db: web::Data<mysql::Pool>, info: Path<u32>)
+                           -> std::io::Result<HttpResponse> {
+    let conn = db.get_conn().unwrap();
+    let result = select_post_list(DatabaseType::Mysql(conn), info.0, 1);
+
+    match result {
+        Some((pages, data)) => Ok(
+            HttpResponse::Ok().json(PostListPages {
+                status: "success".to_string(),
+                pages,
+                page: info.0,
+                data
+            })),
+        _ => Ok(HttpResponse::Ok().content_type("application/json").body(
+            json::object! {
+                "status" => "error",
+                "msg" => "error when fetch data"
+        }.dump()))
+    }
 }
 
 
