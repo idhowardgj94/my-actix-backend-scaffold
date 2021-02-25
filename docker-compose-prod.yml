@@ -1,0 +1,10 @@
+# Use root/example as user/password credentials
+version: '3.1'
+
+services:
+  app:
+    network_mode: host
+    build: .
+    working_dir: /usr/src/myapp
+    port: 8081:8080
+

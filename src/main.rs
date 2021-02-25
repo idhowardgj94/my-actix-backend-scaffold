@@ -41,7 +41,7 @@ async fn main() -> Result<()> {
             .service(web::resource("/api/login").route(web::post().to(login_post)))
             .service(web::resource("/api/logout").route(web::post().to(logout)))
             .service(
-                web::resource("/me")
+                web::resource("/api/me")
                     .route(web::post().to(me))
             )
             .service(
@@ -68,7 +68,7 @@ async fn main() -> Result<()> {
             )
             .default_service(web::route().to(not_found))
     })
-        .bind("0.0.0.0:3000")?
+        .bind("0.0.0.0:3001")?
         .run()
         .await?;
     Ok(())
