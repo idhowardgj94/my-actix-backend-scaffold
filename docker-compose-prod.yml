@@ -4,7 +4,11 @@ version: '3.1'
 services:
   app:
     network_mode: host
-    build: .
+    image: rust:1.49
     working_dir: /usr/src/myapp
-    port: 8081:8080
+    volumes:
+        - .:/usr/src/myapp
+    command: "cargo run"
+    ports:
+        - 3001:3001
 
