@@ -1,4 +1,4 @@
-use chrono::{DateTime, Local};
+use chrono::{DateTime, Local, SecondsFormat};
 use mysql::*;
 use mysql::prelude::*;
 use crate::commons::database_type::DatabaseType;
@@ -13,7 +13,7 @@ pub fn insert_post(db_pool: DatabaseType, p: PostRequest)-> mysql::Result<()> {
             let local: DateTime<Local> = Local::now();
             let mut tx = conn.start_transaction(TxOpts::default())?;
             tx.exec_drop("INSERT INTO posts (title, post_date, content, is_public) VALUES (?, ?, ?, ?)",
-                         (p.title, local.to_rfc3339(), p.content, p.status))?;
+                         (p.title, local.to_rfc3339_opts(SecondsFormat::Secs, true), p.content, p.status))?;
             let post_id = tx.last_insert_id().unwrap();
             // insert tag
             for t in &p.tags {
