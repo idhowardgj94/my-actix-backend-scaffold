@@ -7,4 +7,4 @@ CREATE TABLE posts (
     create_time timestamp NULL DEFAULT CURRENT_TIMESTAMP,
     update_time timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id)
-);
+) CHARACTER SET utf8mb4;

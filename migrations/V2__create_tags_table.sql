@@ -2,4 +2,4 @@ CREATE TABLE tags (
     id INT NOT NULL AUTO_INCREMENT,
     tag_name VARCHAR(256) NOT NULL,
     PRIMARY KEY (id)
-);
+) CHARACTER SET utf8mb4;
