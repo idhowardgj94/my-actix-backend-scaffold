@@ -1,6 +1,7 @@
 use yaml_rust::{YamlLoader};
 use std::fs;
 use mysql::*;
+use log::LevelFilter;
 use actix_web::{web, App, HttpServer, Responder, guard};
 use blog_back::db::migration::*;
 use blog_back::login::{login_post, me, logout};
@@ -9,7 +10,7 @@ use actix_web::middleware::Logger;
 use log::*;
 use blog_back::auth_middleware::validator;
 use blog_back::post::{post_insert_post, get_post_list, get_blog, trigger_public, get_public_post_list};
-
+use chrono::{DateTime, Local, SecondsFormat};
 
 
 #[derive(Debug, PartialEq, Eq)]
@@ -40,8 +41,8 @@ async fn main() -> Result<()> {
     } else {
         panic!("please check if your env.yaml exist and valid");
     }
-
-    env_logger::init_from_env(env_logger::Env::new().default_filter_or("debug"));
+    
+    simple_logging::log_to_file("server.log", LevelFilter::Debug);
     // db migration
     let pool = Pool::new(format!("{}://{}:{}@{}/{}", db_type, user, password, db_url, db))?;
     let conn = pool.get_conn();
