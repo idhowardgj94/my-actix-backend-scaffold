@@ -1,3 +1,5 @@
+use yaml_rust::{YamlLoader};
+use std::fs;
 use mysql::*;
 use actix_web::{web, App, HttpServer, Responder, guard};
 use blog_back::db::migration::*;
@@ -8,6 +10,8 @@ use log::*;
 use blog_back::auth_middleware::validator;
 use blog_back::post::{post_insert_post, get_post_list, get_blog, trigger_public, get_public_post_list};
 
+
+
 #[derive(Debug, PartialEq, Eq)]
 struct Payment {
     customer_id: i32,
@@ -17,9 +21,29 @@ struct Payment {
 
 #[actix_web::main]
 async fn main() -> Result<()> {
+    // load env file.
+    let env = YamlLoader::load_from_str(&fs::read_to_string("env.yaml").unwrap());
+    let server_url;
+    let db_type;
+    let user;
+    let password;
+    let db;
+    let db_url;
+    if let Ok(v) = env {
+        let doc = v[0].to_owned();
+        server_url = doc["server"]["url"].clone().into_string().unwrap();
+        db_type = doc["db"]["type"].clone().into_string().unwrap();
+        db_url = doc["db"]["url"].clone().into_string().unwrap();
+        db = doc["db"]["db"].clone().into_string().unwrap();
+        user = doc["db"]["user"].clone().into_string().unwrap();
+        password = doc["db"]["password"].clone().into_string().unwrap();
+    } else {
+        panic!("please check if your env.yaml exist and valid");
+    }
+
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("debug"));
     // db migration
-    let pool = Pool::new("mysql://root:example@127.0.0.1:3306/blog")?;
+    let pool = Pool::new(format!("{}://{}:{}@{}/{}", db_type, user, password, db_url, db))?;
     let conn = pool.get_conn();
     let db_pool = web::Data::new(pool);
 
@@ -68,7 +92,7 @@ async fn main() -> Result<()> {
             )
             .default_service(web::route().to(not_found))
     })
-        .bind("0.0.0.0:3001")?
+        .bind(server_url)?
         .run()
         .await?;
     Ok(())
@@ -84,5 +108,18 @@ mod test {
     #[test]
     fn test_example() {
         assert_eq!(true, true);
+    }
+}
+
+#[cfg(test)]
+mod test_yaml {
+    use super::*;
+    #[test]
+    pub fn test_env_valid() {
+        let env = YamlLoader::load_from_str(&fs::read_to_string("env.yaml").unwrap());
+        if let Ok(v) = env {
+            let doc = &v[0];
+            assert_eq!(doc["server"]["url"].as_str().unwrap(), "0.0.0.0:3000")
+        }
     }
 }
