@@ -42,7 +42,7 @@ pub fn get_blog_by_id(db_pool: DatabaseType, id: i32) -> Option<PostData> {
     match db_pool {
         DatabaseType::Mysql(mut conn) => {
             // XXX exec_first 方法，在使用 get (from FromValue Trait ) 時，在create_time 解析成 String 時會有問題…
-            let res = conn.query_first::<Row, _>(format! ("SELECT id, title, content, is_public, create_time, update_time  FROM posts WHERE id = {}", (id))).unwrap();
+            let res = conn.query_first::<Row, _>(format! ("SELECT id, title, content, is_public, create_time, update_time, post_date  FROM posts WHERE id = {}", (id))).unwrap();
 
             let response = match res {
                 Some(it) => {
@@ -56,6 +56,7 @@ pub fn get_blog_by_id(db_pool: DatabaseType, id: i32) -> Option<PostData> {
                         tags: t_result.into_iter().map(|it| it.unwrap().get(0).unwrap()).collect(),
                         create_time: it.get::<String, _>(4).unwrap(),
                         update_time: it.get::<String, _>(5).unwrap(),
+                        post_date: it.get::<String, _>(6).unwrap(),
                         is_public: it.get(3).unwrap()
                     })
                 },
@@ -92,9 +93,9 @@ pub fn select_post_list(db_pool: DatabaseType, page: u32, is_public: i32) -> Opt
             // query_iter
             // query_exec not the same
             let query = match is_public {
-                -1 => format!("SELECT id, title, content, is_public, create_time, update_time FROM posts LIMIT 10 OFFSET {}",
+                -1 => format!("SELECT id, title, content, is_public, create_time, update_time, post_date FROM posts ORDER BY post_date DESC LIMIT 10 OFFSET {}",
                               (page - 1) * 10),
-                1 | _ => format!("SELECT id, title, content, is_public, create_time, update_time FROM posts WHERE is_public = {} LIMIT 10 OFFSET {}",
+                1 | _ => format!("SELECT id, title, content, is_public, create_time, update_time, post_date FROM posts WHERE is_public = {} ORDER BY post_date DESC LIMIT 10 OFFSET {}",
                              1, (page - 1) * 10),
             };
             let res= conn.query_iter(query).unwrap();
@@ -120,6 +121,7 @@ pub fn select_post_list(db_pool: DatabaseType, page: u32, is_public: i32) -> Opt
                     tags: t_result.into_iter().map(|it| it.unwrap().get(0).unwrap()).collect(),
                     create_time: it.get::<String, _>(4).unwrap(),
                     update_time: it.get::<String, _>(5).unwrap(),
+                    post_date: it.get::<String, _>(6).unwrap(),
                     is_public: it.get(3).unwrap()
                 })
             }

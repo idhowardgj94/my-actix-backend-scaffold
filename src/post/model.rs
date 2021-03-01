@@ -14,6 +14,7 @@ pub struct PostData {
     pub title: String,
     pub content: String,
     pub tags: Vec<String>,
+    pub post_date: String,
     pub create_time: String,
     pub update_time: String,
     pub is_public: i32,

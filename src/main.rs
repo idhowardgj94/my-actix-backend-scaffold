@@ -41,7 +41,7 @@ async fn main() -> Result<()> {
     } else {
         panic!("please check if your env.yaml exist and valid");
     }
-    
+
     simple_logging::log_to_file("server.log", LevelFilter::Debug);
     // db migration
     let pool = Pool::new(format!("{}://{}:{}@{}/{}", db_type, user, password, db_url, db))?;
