@@ -4,6 +4,7 @@ use mysql::prelude::*;
 use crate::commons::database_type::DatabaseType;
 use crate::post::model::{PostRequest, PostData};
 use log::debug;
+use log::info;
 use mysql::time::Date;
 
 #[allow(unused_must_use)]
@@ -35,6 +36,45 @@ pub fn insert_post(db_pool: DatabaseType, p: PostRequest)-> mysql::Result<()> {
             Ok(())
         }
         _ => Ok(())
+    }
+}
+
+/// update post
+pub fn update_post(db_pool: DatabaseType, p: PostRequest) -> mysql::Result<()> {
+    const UPDATE_POST_QUERY: &str = "UPDATE posts SET title=?, content=?, is_public=? WHERE id=?";
+    const DELETE_POST_TAG: &str = "DELETE FROM post_tag WHERE post_id=?";
+    const QUERY_TAGS: &str = "SELECT id FROM tags WHERE tag_name=?";
+    const INSERT_TAG: &str = "INSERT INTO tags (tag_name) values (?)";
+    const INSERT_POST_TAG: &str = "INSERT INTO post_tag (post_id, tag_id) VALUES (?, ?)";
+    match db_pool {
+        DatabaseType::Mysql(mut conn) => {
+            let mut tx = conn.start_transaction(TxOpts::default())?;
+            let id = p.id.unwrap();
+            tx.exec_drop(UPDATE_POST_QUERY,
+                         (p.title, p.content, p.status, id))?;
+            tx.exec_drop(DELETE_POST_TAG, (id,))?;
+            // insert tag
+            for t in &p.tags {
+                let res: Option<Row> = tx.exec_first(QUERY_TAGS, (t,)).unwrap();
+                let tag_id = match res {
+                    None => {
+                        tx.exec_drop(INSERT_TAG, (id,));
+                        let tag_id = tx.last_insert_id().unwrap();
+                        tag_id
+                    },
+                    Some(r) => {
+                        let tag_id: u64 = r.get(0).unwrap();
+                        tag_id
+                    }
+                };
+                tx.exec_drop(INSERT_POST_TAG, (id, tag_id,));
+            };
+            tx.commit();
+            Ok(())
+        },
+        _ => {
+            Ok(())
+        }
     }
 }
 

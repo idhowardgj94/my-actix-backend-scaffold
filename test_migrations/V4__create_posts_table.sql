@@ -1,0 +1,10 @@
+CREATE TABLE posts (
+    id INT NOT NULL AUTO_INCREMENT,
+    title VARCHAR(256) NOT NULL,
+    post_date TIMESTAMP,
+    content TEXT NOT NULL,
+    is_public INT NOT NULL DEFAULT 0,
+    create_time timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+    update_time timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id)
+) CHARACTER SET utf8mb4;

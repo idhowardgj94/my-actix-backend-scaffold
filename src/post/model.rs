@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct PostRequest {
+    pub id: Option<i32>,
     pub title: String,
     pub tags: Vec<String>,
     pub content: String,
