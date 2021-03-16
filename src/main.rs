@@ -9,10 +9,10 @@ use blog_back::router::not_found;
 use actix_web::middleware::Logger;
 use log::*;
 use blog_back::auth_middleware::validator;
-use blog_back::post::{post_insert_post, get_post_list, get_blog, trigger_public, get_public_post_list};
+use blog_back::post::{post_insert_post, get_post_list, get_blog, trigger_public, get_public_post_list, put_update_post};
 use chrono::{DateTime, Local, SecondsFormat};
 
-
+// TODO refactor: abstract route
 #[derive(Debug, PartialEq, Eq)]
 struct Payment {
     customer_id: i32,
@@ -74,7 +74,13 @@ async fn main() -> Result<()> {
                     .service(
                         web::resource("/post")
                             .guard(guard::fn_guard(validator))
-                            .route(web::post().to(post_insert_post)))
+                            .route(web::post().to(post_insert_post))
+                    )
+                    .service(
+                        web::resource("/post/{id}")
+                           .guard(guard::fn_guard(validator))
+                            .route(web::put().to(put_update_post))
+                    )
                     .service(
                         web::resource("/posts/{page}")
                             .route(web::get().to(get_post_list)))

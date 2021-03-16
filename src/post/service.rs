@@ -40,7 +40,7 @@ pub fn insert_post(db_pool: DatabaseType, p: PostRequest)-> mysql::Result<()> {
 }
 
 /// update post
-pub fn update_post(db_pool: DatabaseType, p: PostRequest) -> mysql::Result<()> {
+pub fn update_post(db_pool: DatabaseType, id: i32 ,p: PostRequest) -> mysql::Result<()> {
     const UPDATE_POST_QUERY: &str = "UPDATE posts SET title=?, content=?, is_public=? WHERE id=?";
     const DELETE_POST_TAG: &str = "DELETE FROM post_tag WHERE post_id=?";
     const QUERY_TAGS: &str = "SELECT id FROM tags WHERE tag_name=?";
@@ -49,7 +49,6 @@ pub fn update_post(db_pool: DatabaseType, p: PostRequest) -> mysql::Result<()> {
     match db_pool {
         DatabaseType::Mysql(mut conn) => {
             let mut tx = conn.start_transaction(TxOpts::default())?;
-            let id = p.id.unwrap();
             tx.exec_drop(UPDATE_POST_QUERY,
                          (p.title, p.content, p.status, id))?;
             tx.exec_drop(DELETE_POST_TAG, (id,))?;

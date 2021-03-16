@@ -5,12 +5,20 @@ use serde::{Deserialize, Serialize};
 use model::{PostListPages, PostRequest};
 use crate::commons::database_type::DatabaseType;
 use crate::post::model::PostData;
-use crate::post::service::{select_post_list, get_blog_by_id, trigger_public_by_id};
+use crate::post::service::{select_post_list, get_blog_by_id, trigger_public_by_id, update_post};
 use crate::util::DataResponse;
-
 mod service;
 mod model;
-
+/// PUT /api/post/{id}
+pub async fn put_update_post(db:web::Data<mysql::Pool>, body: Json<PostRequest>, path: Path<i32>)
+    -> std::io::Result<HttpResponse> {
+    let conn = db.get_conn().unwrap();
+    update_post(DatabaseType::Mysql(conn), path.0.clone(), body.0);
+    Ok(HttpResponse::Ok().content_type("application/json").body(json::object! {
+        "status" => "success"
+    }.dump()))
+}
+/// POST /api/post
 pub async fn post_insert_post(db: web::Data<mysql::Pool>, body: Json<PostRequest>)
     -> std::io::Result<HttpResponse> {
     let conn = db.get_conn().unwrap();
