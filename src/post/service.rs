@@ -57,7 +57,7 @@ pub fn update_post(db_pool: DatabaseType, id: i32 ,p: PostRequest) -> mysql::Res
                 let res: Option<Row> = tx.exec_first(QUERY_TAGS, (t,)).unwrap();
                 let tag_id = match res {
                     None => {
-                        tx.exec_drop(INSERT_TAG, (id,));
+                        tx.exec_drop(INSERT_TAG, (t,));
                         let tag_id = tx.last_insert_id().unwrap();
                         tag_id
                     },
