@@ -12,6 +12,14 @@ use crate::util::user_b_tree_map;
 pub mod service;
 pub mod model;
 
+pub fn route(cfg: &mut web::ServiceConfig) {
+    cfg.service(web::resource("/api/login").route(web::post().to(login_post)))
+        .service(web::resource("/api/logout").route(web::post().to(logout)))
+        .service(
+            web::resource("/api/me")
+                .route(web::post().to(me))
+        );
+}
 // route
 // TODO error handling
 pub async fn login_post(db: web::Data<mysql::Pool>, body: Json<User>) -> std::io::Result<HttpResponse> {

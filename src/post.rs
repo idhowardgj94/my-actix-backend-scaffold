@@ -1,4 +1,4 @@
-use actix_web::{HttpResponse, web};
+use actix_web::{HttpResponse, web, guard};
 use actix_web::web::{Json, Path};
 use log::*;
 use serde::{Deserialize, Serialize};
@@ -7,8 +7,40 @@ use crate::commons::database_type::DatabaseType;
 use crate::post::model::PostData;
 use crate::post::service::{select_post_list, get_blog_by_id, trigger_public_by_id, update_post};
 use crate::util::DataResponse;
+use crate::auth_middleware::validator;
 mod service;
 mod model;
+
+pub fn route(cfg: &mut web::ServiceConfig) {
+    cfg.service(
+        web::scope("/api")
+            .service(
+                web::resource("/post")
+                    .guard(guard::fn_guard(validator))
+                    .route(web::post().to(post_insert_post)))
+            .service(
+                web::resource("/posts/{page}")
+                    .route(web::get().to(get_post_list)))
+            .service(
+                web::resource("/posts/public/{page}")
+                    .route(web::get().to(get_public_post_list)))
+            .service(
+                web::resource("/post/public/{n}")
+                    .guard(guard::fn_guard(validator))
+                    .route(web::post().to(trigger_public))
+            )
+            .service(
+                web::resource("/post/{id}")
+                   .guard(guard::fn_guard(validator))
+                    .route(web::put().to(put_update_post))
+            )
+            .service(
+                web::resource("/blog/{id}")
+                    .route(web::get().to(get_blog))
+            )
+    );
+}
+
 /// PUT /api/post/{id}
 pub async fn put_update_post(db:web::Data<mysql::Pool>, body: Json<PostRequest>, path: Path<i32>)
     -> std::io::Result<HttpResponse> {
@@ -18,6 +50,7 @@ pub async fn put_update_post(db:web::Data<mysql::Pool>, body: Json<PostRequest>,
         "status" => "success"
     }.dump()))
 }
+
 /// POST /api/post
 pub async fn post_insert_post(db: web::Data<mysql::Pool>, body: Json<PostRequest>)
     -> std::io::Result<HttpResponse> {

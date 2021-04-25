@@ -6,6 +6,8 @@ use crate::post::model::{PostRequest, PostData};
 use log::debug;
 use log::info;
 use mysql::time::Date;
+use std::borrow::{Cow, BorrowMut};
+use std::cell::RefCell;
 
 #[allow(unused_must_use)]
 pub fn insert_post(db_pool: DatabaseType, p: PostRequest)-> mysql::Result<()> {
@@ -80,27 +82,25 @@ pub fn update_post(db_pool: DatabaseType, id: i32 ,p: PostRequest) -> mysql::Res
 pub fn get_blog_by_id(db_pool: DatabaseType, id: i32) -> Option<PostData> {
     match db_pool {
         DatabaseType::Mysql(mut conn) => {
-            // XXX exec_first 方法，在使用 get (from FromValue Trait ) 時，在create_time 解析成 String 時會有問題…
-            let res = conn.query_first::<Row, _>(format! ("SELECT id, title, content, is_public, create_time, update_time, post_date  FROM posts WHERE id = {}", (id))).unwrap();
+            let res = conn.query_first::<PostData, _>(format! ("SELECT id, title, content, is_public, create_time, update_time, post_date  FROM posts WHERE id = {}", (id))).unwrap();
+            let response = if let Some(mut it) = res {
+                let id = it.id;
+                let t_result = conn.exec_iter("SELECT t.tag_name FROM tags t JOIN post_tag p ON p.tag_id = t.id WHERE p.post_id = ?",
+                                              (it.id,)).unwrap();
+                let mut tags = RefCell::from(t_result.into_iter().map(
+                    |it| from_value::<String>(
+                        it.unwrap()
+                            .get(0)
+                            .unwrap()
+                    )
+                ).collect::<Vec<String>>());
 
-            let response = match res {
-                Some(it) => {
-                    let t_result = conn.exec_iter("SELECT t.tag_name FROM tags t JOIN post_tag p ON p.tag_id = t.id WHERE p.post_id = ?",
-                                                  (it.get::<u32, _>(0).unwrap(),)).unwrap();
-                    debug!("{:?}", it);
-                    Some(PostData {
-                        id: it.get(0).unwrap(),
-                        title: it.get(1).unwrap(),
-                        content: it.get::<String, _>(2).unwrap(),
-                        tags: t_result.into_iter().map(|it| it.unwrap().get(0).unwrap()).collect(),
-                        create_time: it.get::<String, _>(4).unwrap(),
-                        update_time: it.get::<String, _>(5).unwrap(),
-                        post_date: it.get::<String, _>(6).unwrap(),
-                        is_public: it.get(3).unwrap()
-                    })
-                },
-                None => None
+                it.add_tags(&mut tags.into_inner());
+                Some(it)
+            } else {
+                panic!("parsing error");
             };
+            
             response
         },
         _ => None
