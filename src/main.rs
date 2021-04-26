@@ -8,7 +8,8 @@ use log::*;
 use blog_back::post;
 use blog_back::login;
 use blog_back::env;
-
+use actix_identity::{IdentityService, CookieIdentityPolicy};
+use actix_web::cookie::Cookie;
 
 
 #[actix_web::main]
@@ -35,6 +36,9 @@ async fn main() -> Result<()> {
     HttpServer::new(move || {
         App::new()
             .wrap(Logger::default())
+            .wrap(IdentityService::new(CookieIdentityPolicy::new(&[0; 32])
+                .name("lishin-id")
+                .secure(true)))
             .app_data(db_pool.clone())
             .service(web::resource("/").route(web::get().to(index)))
             .configure(login::route)

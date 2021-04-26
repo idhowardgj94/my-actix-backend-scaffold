@@ -1,5 +1,5 @@
 use std::collections::{BTreeMap};
-use crate::login::model::User;
+use crate::login::model::{User, UserProfile};
 use log::*;
 use serde::Deserialize;
 use serde::Serialize;
@@ -12,6 +12,11 @@ pub fn user_b_tree_map(u: &User) -> BTreeMap< String, String> {
     t
 }
 
+pub fn user_profile_b_tree_map(u: &UserProfile) -> BTreeMap<String, String> {
+    let mut t = BTreeMap::new();
+    t.insert("name".to_string(), u.name.clone());
+    t
+}
 #[derive(Serialize, Deserialize)]
 pub struct DataResponse<'a, Data> {
     pub(crate) status: &'a str,

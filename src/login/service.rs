@@ -2,9 +2,9 @@ use bcrypt::{DEFAULT_COST, hash, verify};
 use mysql::*;
 use mysql::prelude::*;
 use crate::commons::database_type::DatabaseType;
-use crate::login::model::User;
+use crate::login::model::{User, UserProfile};
 
-pub fn login(db_pool: DatabaseType, user: &User) -> bool {
+pub fn login(db_pool: DatabaseType, user: &User) -> Option<UserProfile> {
     let r = match db_pool {
         DatabaseType::Mysql(mut conn) => {
             conn.exec_first(r"SELECT name, password FROM users WHERE name=:name", params! {
@@ -24,14 +24,18 @@ pub fn login(db_pool: DatabaseType, user: &User) -> bool {
         Some(u) => {
             let password = u.password;
             match verify(&user.password, &password) {
-                Ok(bool) => bool,
+                Ok(bool) => {
+                    Some(UserProfile {
+                        name: u.name.clone()
+                    })
+                },
                 Err(_) => {
-                    false
+                    None
                 }
             }
         },
         None => {
-            false
+            None
         }
     }
 }
@@ -45,6 +49,7 @@ mod test_login {
 
     use crate::login::*;
     use crate::login::service::login;
+    use crate::login::model::UserProfile;
 
     mod embed {
         use refinery::embed_migrations;
@@ -64,9 +69,9 @@ mod test_login {
     #[test]
     fn login_test() {
         let conn = setup();
-        assert!(login( DatabaseType::None, &User {
+        assert!(matches! { login( DatabaseType::None, &User {
             name: "idhowardgj94".to_string(),
             password: "idhowardgj94".to_string()
-        }));
+        }) , Option::Some(_) } );
     }
 }
