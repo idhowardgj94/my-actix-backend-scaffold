@@ -9,6 +9,7 @@ pub fn sign_for_login(c: BTreeMap<String, String>) -> String {
     c.sign_with_key(&key).unwrap()
 }
 
+
 pub fn verification(t: String) -> Option<BTreeMap<String, String>> {
     // TODO config
     let key: Hmac<Sha256> = Hmac::new_varkey(b"howardishandsome").unwrap();

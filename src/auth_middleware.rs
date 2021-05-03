@@ -1,6 +1,7 @@
 use actix_web::dev::{RequestHead};
 use crate::jwt::verification;
 
+// TODO 動態
 pub fn validator(
     req: &RequestHead
 ) -> bool {

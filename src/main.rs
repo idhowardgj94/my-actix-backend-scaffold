@@ -17,7 +17,8 @@ async fn main() -> Result<()> {
     // load env file.
     let env = env::get_from("env.yaml");
 
-    simple_logging::log_to_file("server.log", LevelFilter::Debug).unwrap();
+    // simple_logging::log_to_file("server.log", LevelFilter::Debug).unwrap();
+    simple_logging::log_to_stderr(LevelFilter::Debug);
     // db migration
     let pool = Pool::new(format!("{}://{}:{}@{}/{}", env.db_type, env.user, env.password, env.db_url, env.db))?;
     let conn = pool.get_conn();
@@ -37,7 +38,7 @@ async fn main() -> Result<()> {
         App::new()
             .wrap(Logger::default())
             .wrap(IdentityService::new(CookieIdentityPolicy::new(&[0; 32])
-                .name("lishin-id")
+                .name("lishin_id")
                 .secure(true)))
             .app_data(db_pool.clone())
             .service(web::resource("/").route(web::get().to(index)))
@@ -74,6 +75,8 @@ pub async fn not_found() -> HttpResponse {
 #[cfg(test)]
 mod test_yaml {
     use super::*;
+    use std::fs;
+
     #[test]
     pub fn test_env_valid() {
         let env = YamlLoader::load_from_str(&fs::read_to_string("env.yaml").unwrap());

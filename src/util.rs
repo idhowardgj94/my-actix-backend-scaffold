@@ -12,10 +12,10 @@ pub fn user_b_tree_map(u: &User) -> BTreeMap< String, String> {
     t
 }
 
-pub fn user_profile_b_tree_map(u: &UserProfile) -> BTreeMap<String, String> {
+pub fn sign_from_string(u: &String) -> BTreeMap<String, String> {
     let mut t = BTreeMap::new();
-    t.insert("name".to_string(), u.name.clone());
-    t
+    t.insert(String::from("name"), u.clone());
+    return t;
 }
 #[derive(Serialize, Deserialize)]
 pub struct DataResponse<'a, Data> {

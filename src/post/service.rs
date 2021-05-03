@@ -122,20 +122,19 @@ pub fn select_post_list(db_pool: DatabaseType, page: u32, is_public: i32) -> Opt
         DatabaseType::Mysql(mut conn) => {
             // calculate pages
             let count: u32 = conn.query_first("SELECT count(id) FROM posts").unwrap().unwrap();
-            let pages = count / 10 + 1;
+            let pages = count / 10 ;
             if page > pages {
                 return None;
             }
 
             let mut response: Vec<PostData> = Vec::new();
             let mut posts_tmp: Vec<Row> = Vec::new();
-            // query_iter
             // query_exec not the same
             let query = match is_public {
                 -1 => format!("SELECT id, title, content, is_public, create_time, update_time, post_date FROM posts ORDER BY post_date DESC LIMIT 10 OFFSET {}",
-                              (page - 1) * 10),
+                              page * 10),
                 1 | _ => format!("SELECT id, title, content, is_public, create_time, update_time, post_date FROM posts WHERE is_public = {} ORDER BY post_date DESC LIMIT 10 OFFSET {}",
-                             1, (page - 1) * 10),
+                             1, page * 10),
             };
             let res= conn.query_iter(query).unwrap();
             for rit in res {

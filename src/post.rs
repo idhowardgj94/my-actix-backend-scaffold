@@ -45,7 +45,7 @@ pub fn route(cfg: &mut web::ServiceConfig) {
 pub async fn put_update_post(db:web::Data<mysql::Pool>, body: Json<PostRequest>, path: Path<i32>)
     -> std::io::Result<HttpResponse> {
     let conn = db.get_conn().unwrap();
-    update_post(DatabaseType::Mysql(conn), path.0.clone(), body.0);
+    update_post(DatabaseType::Mysql(conn), path.into_inner(), body.0);
     Ok(HttpResponse::Ok().content_type("application/json").body(json::object! {
         "status" => "success"
     }.dump()))
@@ -107,7 +107,7 @@ pub async fn get_post_list(db: web::Data<mysql::Pool>, info: Path<u32>)
             HttpResponse::Ok().json(PostListPages {
                 status: "success".to_string(),
                 pages,
-                page: info.0,
+                page: info.into_inner(),
                 data
             })),
         _ => Ok(HttpResponse::Ok().content_type("application/json").body(
