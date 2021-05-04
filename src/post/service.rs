@@ -122,7 +122,7 @@ pub fn select_post_list(db_pool: DatabaseType, page: u32, is_public: i32) -> Opt
         DatabaseType::Mysql(mut conn) => {
             // calculate pages
             let count: u32 = conn.query_first("SELECT count(id) FROM posts").unwrap().unwrap();
-            let pages = count / 10 ;
+            let pages = (count / 10)  + 1;
             if page > pages {
                 return None;
             }
