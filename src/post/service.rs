@@ -82,7 +82,7 @@ pub fn update_post(db_pool: DatabaseType, id: i32 ,p: PostRequest) -> mysql::Res
 pub fn get_blog_by_id(db_pool: DatabaseType, id: i32) -> Option<PostData> {
     match db_pool {
         DatabaseType::Mysql(mut conn) => {
-            let res = conn.query_first::<PostData, _>(format! ("SELECT id, title, content, is_public, create_time, update_time, post_date  FROM posts WHERE id = {}", (id))).unwrap();
+            let res = conn.exec_first::<PostData, _, _>("SELECT id, title, content, is_public, create_time, update_time, post_date  FROM posts WHERE id = ?", (id, )).unwrap();
             let response = if let Some(mut it) = res {
                 let id = it.id;
                 let t_result = conn.exec_iter("SELECT t.tag_name FROM tags t JOIN post_tag p ON p.tag_id = t.id WHERE p.post_id = ?",
@@ -117,7 +117,7 @@ pub fn trigger_public_by_id(db_pool: DatabaseType, n: u32)  {
 
 }
 
-pub fn select_post_list(db_pool: DatabaseType, page: u32, is_public: i32) -> Option<(u32, Vec<PostData>)> {
+pub fn select_post_list(db_pool: DatabaseType, mut page: u32, is_public: i32) -> Option<(u32, Vec<PostData>)> {
     match db_pool {
         DatabaseType::Mysql(mut conn) => {
             // calculate pages
@@ -130,13 +130,28 @@ pub fn select_post_list(db_pool: DatabaseType, page: u32, is_public: i32) -> Opt
             let mut response: Vec<PostData> = Vec::new();
             let mut posts_tmp: Vec<Row> = Vec::new();
             // query_exec not the same
-            let query = match is_public {
-                -1 => format!("SELECT id, title, content, is_public, create_time, update_time, post_date FROM posts ORDER BY post_date DESC LIMIT 10 OFFSET {}",
-                              page * 10),
-                1 | _ => format!("SELECT id, title, content, is_public, create_time, update_time, post_date FROM posts WHERE is_public = {} ORDER BY post_date DESC LIMIT 10 OFFSET {}",
-                             1, page * 10),
+            // exec_iter return Binary, which will deserialized as Value (enum),
+            // and need to implement FromValue ( I guess)
+            // use this workaround for now.
+            // every query must exec
+
+            let res = match is_public {
+                -1 => {
+                    let stmt = "SELECT id, title, content, is_public, create_time, update_time, post_date FROM posts ORDER BY post_date DESC LIMIT 10 OFFSET :page";
+                    conn.exec_iter(stmt, params! {
+                        "page" => page * 10
+                    }).unwrap()
+                },
+                1 | _ => {
+                    let stmt = "SELECT id, title, content, is_public, create_time, update_time, post_date FROM posts WHERE is_public = :is_public ORDER BY post_date DESC LIMIT 10 OFFSET :page";
+                    conn.exec_iter(stmt, params! {
+                        "is_public" => 1,
+                        "page" => page * 10
+                    }).unwrap()
+                }
             };
-            let res= conn.query_iter(query).unwrap();
+
+
             for rit in res {
                 let it = rit.unwrap();
                 posts_tmp.push(it);
@@ -157,9 +172,9 @@ pub fn select_post_list(db_pool: DatabaseType, page: u32, is_public: i32) -> Opt
                     title: it.get(1).unwrap(),
                     content,
                     tags: t_result.into_iter().map(|it| it.unwrap().get(0).unwrap()).collect(),
-                    create_time: it.get::<String, _>(4).unwrap(),
-                    update_time: it.get::<String, _>(5).unwrap(),
-                    post_date: it.get::<String, _>(6).unwrap(),
+                    create_time: it.get::<Value, _>(4).unwrap().as_sql(true).trim_matches('\'').to_string(),
+                    update_time: it.get::<Value, _>(5).unwrap().as_sql(true).trim_matches('\'').to_string(),
+                    post_date: it.get::<Value, _>(6).unwrap().as_sql(true).trim_matches('\'').to_string(),
                     is_public: it.get(3).unwrap()
                 })
             }

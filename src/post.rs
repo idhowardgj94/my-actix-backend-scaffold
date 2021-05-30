@@ -31,7 +31,7 @@ pub fn route(cfg: &mut web::ServiceConfig) {
             )
             .service(
                 web::resource("/post/{id}")
-                   .guard(guard::fn_guard(validator))
+                    .guard(guard::fn_guard(validator))
                     .route(web::put().to(put_update_post))
             )
             .service(
