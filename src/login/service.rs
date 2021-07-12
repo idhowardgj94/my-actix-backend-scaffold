@@ -7,50 +7,23 @@ use actix_identity::Identity;
 use crate::jwt::sign_for_login;
 use std::collections::BTreeMap;
 use log::*;
+use crate::login::user_repository::UserRepository;
 
-pub fn login(db_pool: DatabaseType, user: &User) -> Option<UserProfile> {
+pub fn login(mut user_repo: UserRepository, user: &User) -> Option<UserProfile> {
+    if let Some(u) = user_repo.get_by_name(user.name.clone()) {
+        let password = u.password;
+        if let Ok(bool) = verify(&user.password, &password) {
+            let t = BTreeMap::from(user);
+            let sign = sign_for_login(t);
+            info!("{}", &sign);
+            user_repo.update_login_hash(&sign, &u.name);
 
-    match db_pool {
-        DatabaseType::Mysql(mut conn) => {
-            let r = conn.exec_first(r"SELECT name, password FROM users WHERE name=:name", params! {
-                "name" => user.name.clone()
-            }).unwrap().map(|(name, password)| {
-                    User { name, password }
-            });
-            match r {
-                Some(u) => {
-                    let password = u.password;
-                    match verify(&user.password, &password) {
-                        Ok(bool) => {
-                            // TODO 用JWT 簽合法的hash
-                            let t = BTreeMap::from(user);
-                            let sign = sign_for_login(t);
-                            info!("{}", &sign);
-                            conn.exec_drop("update users set login_hash=:hash where name =:name", params! {
-                                "hash" => &sign,
-                                "name" => u.name.clone()
-                            });
-
-                            Some(UserProfile {
-                                name: u.name.clone()
-                            })
-                        },
-                        Err(_) => {
-                            None
-                        }
-                    }
-                },
-                None => {
-                    None
-                }
-            }
-        },
-        // for test
-        _ => {
-            let password = hash("idhowardgj94", DEFAULT_COST).unwrap();
-            Some( UserProfile { name: "idhowardgj94".to_string() })
-        },
+            return Some(UserProfile {
+                name: u.name.clone()
+            })
+        }
     }
+    None
 }
 
 #[cfg(test)]
@@ -77,14 +50,5 @@ mod test_login {
         // conn.execute("INSERT INTO users (name, password) VALUES (:name, :password)",
         //                        params! { "name" => "howardgj94", "password" => hashed } ).unwrap();
         conn
-    }
-
-    #[test]
-    fn login_test() {
-        let conn = setup();
-        assert!(matches! { login( DatabaseType::None, &User {
-            name: "idhowardgj94".to_string(),
-            password: "idhowardgj94".to_string()
-        }) , Option::Some(_) } );
     }
 }
