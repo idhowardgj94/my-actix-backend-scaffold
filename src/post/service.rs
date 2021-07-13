@@ -7,116 +7,89 @@ use log::debug;
 use log::info;
 use mysql::time::Date;
 use std::borrow::{Cow, BorrowMut};
-use std::cell::RefCell;
+use std::cell::{RefCell, RefMut};
+use crate::post::post_repository::{PostRepository};
+use std::rc::Rc;
 
 #[allow(unused_must_use)]
-pub fn insert_post(db_pool: DatabaseType, p: PostRequest)-> mysql::Result<()> {
-    match db_pool {
-        DatabaseType::Mysql(mut conn) => {
-            let local: DateTime<Local> = Local::now();
-            let mut tx = conn.start_transaction(TxOpts::default())?;
-            tx.exec_drop("INSERT INTO posts (title, post_date, content, is_public) VALUES (?, ?, ?, ?)",
-                         (p.title, local.to_rfc3339_opts(SecondsFormat::Secs, true), p.content, p.status))?;
-            let post_id = tx.last_insert_id().unwrap();
-            // insert tag
-            for t in &p.tags {
-                let res: Option<Row> = tx.exec_first("SELECT id FROM tags WHERE tag_name=?", (t,)).unwrap();
-                let tag_id = match res {
-                    None => {
-                        tx.exec_drop("INSERT INTO tags (tag_name) values (?)", (t,));
-                        let tag_id = tx.last_insert_id().unwrap();
-                        tag_id
-                    },
-                    Some(r) => {
-                        let tag_id: u64 = r.get(0).unwrap();
-                        tag_id
-                    }
-                };
-                tx.exec_drop("INSERT INTO post_tag (post_id, tag_id) VALUES (?, ?)", (post_id, tag_id,));
-            };
-            tx.commit();
-            Ok(())
-        }
-        _ => Ok(())
-    }
+pub fn insert_post(mut conn:  PooledConn, p: PostRequest) -> mysql::Result<()> {
+    let mut tx = conn.start_transaction(TxOpts::default())?;
+    let mut post_repo = PostRepository::new(&mut tx);
+    let local: DateTime<Local> = Local::now();
+    post_repo.insert_post(
+        &p.title,
+        &local.to_rfc3339_opts(SecondsFormat::Secs, true),
+        &p.content,
+        p.status)?;
+
+    let post_id = post_repo.last_insert_id().unwrap();
+    // insert tag
+    for t in &p.tags {
+        let tag_id = match post_repo.get_id_by_tag_name( t)? {
+            None => {
+                post_repo.create_tag(t)?;
+                let tag_id = post_repo.last_insert_id().unwrap();
+                tag_id
+            },
+            Some(r) => {
+                let tag_id: u64 = r.get(0).unwrap();
+                tag_id
+            }
+        };
+        post_repo.insert_post_tag(post_id, tag_id);
+    };
+
+    tx.commit();
+    Ok(())
 }
 
 /// update post
-pub fn update_post(db_pool: DatabaseType, id: i32 ,p: PostRequest) -> mysql::Result<()> {
-    const UPDATE_POST_QUERY: &str = "UPDATE posts SET title=?, content=?, is_public=? WHERE id=?";
-    const DELETE_POST_TAG: &str = "DELETE FROM post_tag WHERE post_id=?";
-    const QUERY_TAGS: &str = "SELECT id FROM tags WHERE tag_name=?";
-    const INSERT_TAG: &str = "INSERT INTO tags (tag_name) values (?)";
-    const INSERT_POST_TAG: &str = "INSERT INTO post_tag (post_id, tag_id) VALUES (?, ?)";
-    match db_pool {
-        DatabaseType::Mysql(mut conn) => {
-            let mut tx = conn.start_transaction(TxOpts::default())?;
-            tx.exec_drop(UPDATE_POST_QUERY,
-                         (p.title, p.content, p.status, id))?;
-            tx.exec_drop(DELETE_POST_TAG, (id,))?;
-            // insert tag
-            for t in &p.tags {
-                let res: Option<Row> = tx.exec_first(QUERY_TAGS, (t,)).unwrap();
-                let tag_id = match res {
-                    None => {
-                        tx.exec_drop(INSERT_TAG, (t,));
-                        let tag_id = tx.last_insert_id().unwrap();
-                        tag_id
-                    },
-                    Some(r) => {
-                        let tag_id: u64 = r.get(0).unwrap();
-                        tag_id
-                    }
-                };
-                tx.exec_drop(INSERT_POST_TAG, (id, tag_id,));
-            };
-            tx.commit();
-            Ok(())
-        },
-        _ => {
-            Ok(())
-        }
-    }
+pub fn update_post(mut conn:  PooledConn,  id: u64 ,p: PostRequest) -> mysql::Result<()> {
+
+    let mut tx = conn.start_transaction(TxOpts::default())?;
+    let mut post_repo = PostRepository::new(&mut tx);
+    post_repo.update_post(&p, id).unwrap();
+    post_repo.delete_post_tag(id).unwrap();
+    // insert tag
+    for t in &p.tags {
+        let tag_id = match post_repo.get_first_tag_by_name(t) {
+            None => {
+                post_repo.create_tag(t).unwrap();
+                post_repo.last_insert_id().unwrap()
+            },
+            Some(r) => {
+                r.get(0).unwrap()
+            }
+        };
+        post_repo.insert_post_tag(id, tag_id);
+    };
+    tx.commit();
+    Ok(())
 }
 
-pub fn get_blog_by_id(db_pool: DatabaseType, id: i32) -> Option<PostData> {
-    match db_pool {
-        DatabaseType::Mysql(mut conn) => {
-            let res = conn.exec_first::<PostData, _, _>("SELECT id, title, content, is_public, create_time, update_time, post_date  FROM posts WHERE id = ?", (id, )).unwrap();
-            let response = if let Some(mut it) = res {
-                let id = it.id;
-                let t_result = conn.exec_iter("SELECT t.tag_name FROM tags t JOIN post_tag p ON p.tag_id = t.id WHERE p.post_id = ?",
-                                              (it.id,)).unwrap();
-                let mut tags = RefCell::from(t_result.into_iter().map(
-                    |it| from_value::<String>(
-                        it.unwrap()
-                            .get(0)
-                            .unwrap()
-                    )
-                ).collect::<Vec<String>>());
-
-                it.add_tags(&mut tags.into_inner());
-                Some(it)
-            } else {
-                panic!("parsing error");
-            };
-            
-            response
-        },
-        _ => None
-    }
+pub fn get_blog_by_id(mut conn: PooledConn, id: u64) -> Option<PostData> {
+    let mut tx = conn.start_transaction(TxOpts::default()).unwrap();
+    let mut post_repo = PostRepository::new( &mut tx);
+    let res = post_repo.get(id);
+    let response = if let Some(mut it) = res {
+        let id = it.id;
+        let mut tags = post_repo.get_tags_by_post_id(it.id as u64).unwrap();
+        it.add_tags(&mut tags);
+        Some(it)
+    } else {
+        panic!("parsing error");
+    };
+    tx.commit();
+    response
 }
 
-pub fn trigger_public_by_id(db_pool: DatabaseType, n: u32)  {
-    match db_pool {
-        DatabaseType::Mysql(mut conn) => {
-            conn.exec_drop("UPDATE posts SET is_public = IF(is_public = 0, 1, 0) WHERE id=?", (n,)).unwrap();
-        }
-        _ => {}
-    }
-
+pub fn trigger_public_by_id(mut conn: PooledConn, n: u64)  {
+    let mut tx = conn.start_transaction(TxOpts::default()).unwrap();
+    let mut post_repo = PostRepository::new(&mut tx);
+    post_repo.set_post_public_by_id(n);
 }
 
+// TODO: redesign code
 pub fn select_post_list(db_pool: DatabaseType, mut page: u32, is_public: i32) -> Option<(u32, Vec<PostData>)> {
     match db_pool {
         DatabaseType::Mysql(mut conn) => {
@@ -134,7 +107,6 @@ pub fn select_post_list(db_pool: DatabaseType, mut page: u32, is_public: i32) ->
             // and need to implement FromValue ( I guess)
             // use this workaround for now.
             // every query must exec
-
             let res = match is_public {
                 -1 => {
                     let stmt = "SELECT id, title, content, is_public, create_time, update_time, post_date FROM posts ORDER BY post_date DESC LIMIT 10 OFFSET :page";

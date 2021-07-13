@@ -8,8 +8,13 @@ use crate::post::model::PostData;
 use crate::post::service::{select_post_list, get_blog_by_id, trigger_public_by_id, update_post};
 use crate::util::DataResponse;
 use crate::auth_middleware::validator;
+use crate::post::post_repository::PostRepository;
+use std::cell::{RefMut, RefCell};
+use std::rc::Rc;
+
 mod service;
 mod model;
+mod post_repository;
 
 pub fn route(cfg: &mut web::ServiceConfig) {
     cfg.service(
@@ -42,10 +47,11 @@ pub fn route(cfg: &mut web::ServiceConfig) {
 }
 
 /// PUT /api/post/{id}
-pub async fn put_update_post(db:web::Data<mysql::Pool>, body: Json<PostRequest>, path: Path<i32>)
+pub async fn put_update_post(db:web::Data<mysql::Pool>, body: Json<PostRequest>, path: Path<u64>)
     -> std::io::Result<HttpResponse> {
-    let conn = db.get_conn().unwrap();
-    update_post(DatabaseType::Mysql(conn), path.into_inner(), body.0);
+    let mut conn = db.get_conn().unwrap();
+    update_post(conn, path.into_inner(), body.0);
+
     Ok(HttpResponse::Ok().content_type("application/json").body(json::object! {
         "status" => "success"
     }.dump()))
@@ -55,7 +61,7 @@ pub async fn put_update_post(db:web::Data<mysql::Pool>, body: Json<PostRequest>,
 pub async fn post_insert_post(db: web::Data<mysql::Pool>, body: Json<PostRequest>)
     -> std::io::Result<HttpResponse> {
     let conn = db.get_conn().unwrap();
-    let res = service::insert_post(DatabaseType::Mysql(conn), body.0);
+    let res = service::insert_post(conn, body.0);
 
     match res {
         Ok(()) => Ok(HttpResponse::Ok()
@@ -71,9 +77,9 @@ pub async fn post_insert_post(db: web::Data<mysql::Pool>, body: Json<PostRequest
 }
 
 /// GET /api/blog/{id}
-pub async fn get_blog(db: web::Data<mysql::Pool>, id: Path<i32>) -> std::io::Result<HttpResponse> {
+pub async fn get_blog(db: web::Data<mysql::Pool>, id: Path<u64>) -> std::io::Result<HttpResponse> {
     let conn = db.get_conn().unwrap();
-    match get_blog_by_id(DatabaseType::Mysql(conn), id.0) {
+    match get_blog_by_id(conn, id.0) {
         Some(d) => {
             // let data = serde_json::to_string(&d).unwrap();
             Ok(HttpResponse::Ok().content_type("application/json").json(DataResponse {
@@ -88,9 +94,9 @@ pub async fn get_blog(db: web::Data<mysql::Pool>, id: Path<i32>) -> std::io::Res
 }
 
 /// POST /api/post/public/{n}
-pub async fn trigger_public(db: web::Data<mysql::Pool>, n: Path<u32>) -> std::io::Result<HttpResponse> {
+pub async fn trigger_public(db: web::Data<mysql::Pool>, n: Path<u64>) -> std::io::Result<HttpResponse> {
     let conn = db.get_conn().unwrap();
-    trigger_public_by_id(DatabaseType::Mysql(conn), n.0);
+    trigger_public_by_id(conn, n.0);
     Ok(HttpResponse::Ok().content_type("application/json").body(json::object! {
         "status" => "success"
     }.dump()))
