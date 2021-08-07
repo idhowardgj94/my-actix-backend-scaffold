@@ -1,3 +1,4 @@
+
 use yaml_rust::{YamlLoader};
 use mysql::*;
 use log::LevelFilter;
@@ -10,7 +11,6 @@ use blog_back::login;
 use blog_back::env;
 use actix_identity::{IdentityService, CookieIdentityPolicy};
 use actix_web::cookie::Cookie;
-
 
 #[actix_web::main]
 async fn main() -> Result<()> {
@@ -25,7 +25,7 @@ async fn main() -> Result<()> {
     let db_pool = web::Data::new(pool);
 
     if let Ok(mut c) = conn {
-        info!("good, {:?}", c);
+        info!("Setup Connection Pool SuccessFull");
         let r = embed::migrations::runner().run(&mut c);
         if let Err(e) = r {
             error!("{:?}", e);
